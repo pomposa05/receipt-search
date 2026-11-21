@@ -34,6 +34,7 @@ for f in ['normalize.js', 'similarity.js', 'engine.js']:
     parts.append(f'// --- {f} ---\n' + strip((srv / f).read_text()))
 parts.append('// --- ocr/extract.js（PC版と同一の抽出規則）---\n' + strip((root.parent / 'server' / 'ocr' / 'extract.js').read_text()))
 parts.append((root / 'src' / 'core.js').read_text())
+parts.append((root / 'src' / 'selection.js').read_text())
 parts.append((root / 'src' / 'photo.js').read_text())
 parts.append((root / 'src' / 'groups.js').read_text())
 parts.append((root / 'src' / 'bulk.js').read_text())

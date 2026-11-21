@@ -112,6 +112,7 @@ function viewGroup({ outlet, params }) {
     const kwMatch = (x) => !(x.groupIds || []).includes(g.id) && splitKeywords(x.keywords).some((k) => normalize(k) === normalize(g.name));
     const kwCands = [...[...S.persons.values()].filter(kwMatch), ...[...S.companies.values()].filter((c) => kwMatch(c) && !personCount(c.id))];
     const memberRow = (x, type) => h('li', { class: 'gm-row' }, [
+      selCheckbox(type, x.id, x.name),
       h('button', { type: 'button', class: 'gm-main', onclick: () => go(type, { id: x.id }) }, [
         type === 'person' ? avatar(S.persons.get(x.id) || x, 'xs') : h('span', { class: 'type-tag type-co' }, '企業'),
         h('span', { class: 'gm-receipt' }, x.receiptName || '（宛名未設定）'),
@@ -148,7 +149,11 @@ function viewGroup({ outlet, params }) {
       ]) : null,
       status,
       h('section', { class: 'card' }, [
-        h('h2', { class: 'card-title' }, `メンバー（${count}件）`),
+        h('div', { class: 'card-head' }, [
+          h('h2', { class: 'card-title' }, `メンバー（${count}件）`),
+          count ? selectAllButton(() => [...ps.map((x) => ({ type: 'person', id: x.id })), ...cs.map((x) => ({ type: 'company', id: x.id }))]) : null,
+        ]),
+        count ? h('p', { class: 'small muted' }, '複数人から同時に領収証を頼まれたときは、チェックを入れて画面下の「対象を表示」を押すと、宛名をまとめて表示できます。') : null,
         count ? h('ul', { class: 'gm-list' }, [...ps.map((p) => memberRow(p, 'person')), ...cs.map((c) => memberRow(c, 'company'))])
           : h('p', { class: 'muted' }, 'まだメンバーがいません。「＋ メンバーを追加」から選ぶか、登録画面でこのグループを選んでください。'),
       ]),

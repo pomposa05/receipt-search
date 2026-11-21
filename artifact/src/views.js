@@ -57,6 +57,7 @@ function viewSearch({ outlet, params }) {
     fill(results,
       h('div', { class: 'result-summary row' }, [
         groupChip(g), h('strong', {}, `${count}件`), h('span', { class: 'muted' }, '（名前順）'),
+        count ? selectAllButton(() => [...ps.map((x) => ({ type: 'person', id: x.id })), ...cs.map((x) => ({ type: 'company', id: x.id }))], 'このグループをすべて選択') : null,
         count ? h('button', { type: 'button', class: 'btn btn-ghost btn-sm', onclick: (e) => copyText(groupReceiptText(g.id), e.currentTarget) }, '宛名を一覧でコピー') : null,
         h('button', { type: 'button', class: 'btn btn-ghost btn-sm', onclick: () => go('group', { id: g.id }) }, 'グループの管理'),
       ]),
@@ -91,7 +92,7 @@ function viewSearch({ outlet, params }) {
       return;
     }
     fill(results,
-      h('div', { class: 'result-summary' }, [`「${r.query}」の検索結果 `, h('strong', {}, `${r.total}件`), h('span', { class: 'muted' }, '（一致度の高い順）')]),
+      h('div', { class: 'result-summary row' }, [h('span', {}, [`「${r.query}」の検索結果 `, h('strong', {}, `${r.total}件`), h('span', { class: 'muted' }, '（一致度の高い順）')]), selectAllButton(() => r.results.map((x) => ({ type: x.type, id: x.id })), '表示中をすべて選択')]),
       r.results.some((x) => x.isCandidate) ? h('p', { class: 'notice notice-warn small' }, '「候補」と表示されたものは、表記の似た登録情報です（曖昧検索）。目的の登録情報か内容を確認して選んでください。') : null,
       h('ul', { class: 'result-list' }, r.results.map((x) => (x.type === 'company' ? companyCard(x) : personCard(x)))),
       h('div', { class: 'ext-foot' }, [h('span', { class: 'small muted' }, '登録情報以外も調べる:'), externalSearchBox(r.query)]));
@@ -128,7 +129,7 @@ function badges(x) {
   return out.length ? h('div', { class: 'badges' }, out) : null;
 }
 function personCard(p) {
-  return h('li', {}, h('button', { type: 'button', class: `result-card ${p.isCandidate ? 'is-candidate' : ''}`, onclick: () => openPerson(p.id) }, [
+  return h('li', { class: 'sel-wrap' }, [selCheckbox('person', p.id, p.name), h('button', { type: 'button', class: `result-card ${p.isCandidate ? 'is-candidate' : ''}`, onclick: () => openPerson(p.id) }, [
     avatar(S.persons.get(p.id) || p, 'sm'),
     h('span', { class: 'rc-main' }, [
       h('span', { class: 'rc-row rc-receipt-top' }, [h('span', { class: 'rc-label' }, '宛名'), h('span', {}, p.receiptName || h('span', { class: 'muted' }, '（未設定）'))]),
@@ -139,10 +140,10 @@ function personCard(p) {
       badges(p),
     ]),
     h('span', { class: 'rc-id' }, shortId(p.id)),
-  ]));
+  ])]);
 }
 function companyCard(c) {
-  return h('li', {}, h('div', { class: `result-card company ${c.isCandidate ? 'is-candidate' : ''}` }, [
+  return h('li', { class: 'sel-wrap' }, [selCheckbox('company', c.id, c.name), h('div', { class: `result-card company ${c.isCandidate ? 'is-candidate' : ''}` }, [
     h('div', { class: 'rc-main' }, [
       h('div', { class: 'rc-row rc-receipt-top' }, [h('span', { class: 'rc-label' }, '宛名'), h('span', {}, c.receiptName || h('span', { class: 'muted' }, '（未設定）'))]),
       h('div', { class: 'rc-row' }, [
@@ -157,7 +158,7 @@ function companyCard(c) {
       badges(c),
     ]),
     h('div', { class: 'rc-id' }, shortId(c.id)),
-  ]));
+  ])]);
 }
 
 // ---------- 外部検索（Google）: 新しいタブで開くリンク。押したときだけ検索語がGoogleに送られる ----------
@@ -1364,6 +1365,7 @@ async function boot() {
   }
   if (sample) { try { RT.canImages = !!(await sample.limits())?.images; } catch { RT.canImages = false; } }
   subscribeAll();
+  mountSelectionBar();
   const timer = setTimeout(() => { if (!allConfirmed()) document.getElementById('conn-banner').hidden = false; }, 10000);
   onData(() => {
     if (allConfirmed()) { clearTimeout(timer); document.getElementById('conn-banner').hidden = true; }
