@@ -1,0 +1,2 @@
+{ "name": "領収証宛名検索", "short_name": "宛名検索", "start_url": "/", "display": "standalone", "background_color": "#ffffff", "theme_color": "#1f5fbf",
+  "icons": [{ "src": "/icon.svg", "sizes": "any", "type": "image/svg+xml" }] }

@@ -1,0 +1,23 @@
+# 依存パッケージ
+node_modules/
+
+# 個人情報を含むデータ（絶対にコミットしない）
+data/
+*.db
+*.db-wal
+*.db-shm
+backups/
+receipt-search-*.json
+receipt-search-*.csv
+
+# 生成物・キャッシュ
+.cache/
+artifact/vendor/
+artifact/dist/
+test/e2e/out/
+artifact/test/out/
+
+# 環境
+.env
+.env.*
+.DS_Store

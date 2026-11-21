@@ -1,0 +1,19 @@
+{
+  "name": "receipt-search",
+  "version": "1.0.0",
+  "description": "領収証宛名検索アプリ（名前・企業名・キーワードから領収証宛名を検索／名刺OCR登録／メモ管理）",
+  "type": "module",
+  "private": true,
+  "engines": { "node": ">=22.13" },
+  "scripts": {
+    "start": "node --disable-warning=ExperimentalWarning server/index.js",
+    "test": "node --disable-warning=ExperimentalWarning --test --test-reporter=spec test/unit/*.test.js",
+    "test:e2e": "node --disable-warning=ExperimentalWarning test/e2e/run.js"
+  },
+  "dependencies": {
+    "@tesseract.js-data/eng": "1.0.0",
+    "@tesseract.js-data/jpn": "1.0.0",
+    "kuromoji": "0.1.2",
+    "tesseract.js": "7.0.0"
+  }
+}
