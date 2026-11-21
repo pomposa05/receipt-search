@@ -6,7 +6,9 @@
 - 追加の DB サーバー不要（Node.js 内蔵の SQLite を使用）
 - **登録データはこのリポジトリに含まれません。** データは起動したPCの `data/` フォルダにだけ保存されます（`.gitignore` で除外済み）
 
-> このリポジトリには、PC版（`server/`・`public/`）と、claude.ai のアーティファクトとして動かす版（`artifact/`）の2つが入っています。どちらも同じ検索エンジン（`server/search/`）を使います。
+> このリポジトリには、PC版（`server/`・`public/`）、claude.ai のアーティファクトとして動かす版（`artifact/`）、**スマホのブラウザに保存して使う GitHub Pages版（`docs/`）**の3つが入っています。どれも同じ検索エンジン（`server/search/`）を使います。
+
+**スマホで使う（GitHub Pages版）**: https://pomposa05.github.io/receipt-search/ を開き、ホーム画面に追加してください。登録データはそのスマホのブラウザの中だけに保存され、このリポジトリや外部には送られません（詳しくは「10. GitHub Pages版」）。
 
 ---
 
@@ -257,7 +259,30 @@ node artifact/test/groups.cjs
 node artifact/test/photo.cjs
 ```
 
-## 10. 使用しているライブラリ
+```bash
+node artifact/test/selection.cjs
+```
+
+## 10. GitHub Pages版（スマホ保存・`docs/`）
+
+アーティファクト版と同じ画面・機能を、claude.ai なしでスマホのブラウザだけで動かす版です。`python3 artifact/build.py` で `docs/` に生成されます（`docs/` は生成物ですが、GitHub Pages で配信するためにリポジトリに含めています）。
+
+- **データの保存場所**: 各端末のブラウザ内（IndexedDB）。名刺画像・顔写真も端末内に保存します。リポジトリ・GitHub・その他の外部サービスには一切送信しません。
+- **文字の読み取り**: 端末内の tesseract.js で行います（画像は外部に送られません）。
+- **外部への通信なし**: Googleフォント等も読み込みません（Content-Security-Policy で自分のサイト以外への接続を禁止）。Google検索リンクは押したときだけ新しいタブで開きます。
+- **オフライン**: 一度開くと Service Worker がアプリ本体をキャッシュし、電波がなくても開けます。
+- **注意**: 機種変更・ブラウザのデータ消去・ホーム画面アプリの削除でデータは消えます。「管理 → データ管理 → JSONで書き出し」で定期的にバックアップしてください。別の端末へは、書き出したJSONを「JSONファイルを選んで取り込む」で移せます（アーティファクト版・PC版のJSONも取り込めます）。
+- 端末ごとに別々のデータになります（同期はしません）。
+
+**公開手順**: GitHub のリポジトリ → Settings → Pages → Source を「Deploy from a branch」、Branch を `main` / `/docs` にして Save。
+
+**テスト**（`docs/` をHTTPで配信し、本物の IndexedDB で確認）
+
+```bash
+node artifact/test/pages.cjs
+```
+
+## 11. 使用しているライブラリ
 
 | ライブラリ | ライセンス | 用途 |
 |---|---|---|

@@ -334,6 +334,7 @@ async function deviceOcr(blob, onProgress) {
   return { readable: ex.lines.length > 0, lines: ex.lines.map((l) => l.text), fields };
 }
 function sampleUnavailableReason() {
+  if (IS_LOCAL) return '';
   if (!RT.sample) return 'この画面ではClaudeによる読み取りが提供されていません（スマートフォンのアプリや一部の環境では使えません）。';
   if (!RT.canImages) return 'この画面ではClaudeに画像を送れません（組織の設定や、ページを開いているアプリ・アカウントによって使えない場合があります）。';
   return '';
@@ -385,7 +386,7 @@ function createOcrPanel({ onFields, onLine, targets }) {
     if (!loaded || busy) return;
     linesBox.replaceChildren();
     const why = sampleUnavailableReason();
-    if (mode === 'device' || why) return runDevice(why);
+    if (mode === 'device' || why || IS_LOCAL) return runDevice(why);
     busy = true; ctl = new AbortController(); stopBtn.hidden = false;
     fill(statusBox, dupNotice(), loading('Claudeが文字を読み取っています…（初回は利用の許可を確認する画面が出ます。通常10〜60秒）'));
     let failed = null;
@@ -450,7 +451,7 @@ function createOcrPanel({ onFields, onLine, targets }) {
   }
   const el = h('section', { class: 'card ocr-card' }, [
     h('div', { class: 'card-head' }, [h('h2', { class: 'card-title' }, '名刺・資料から読み取る'), h('span', { class: 'muted small' }, '任意')]),
-    h('p', { class: 'small muted' }, `名刺や資料を撮影するか、保存済みの画像（${SUPPORTED_LABEL}）を選ぶと、Claudeが文字を読み取って入力欄に反映します（Claudeを使えない環境では、この端末内で読み取ります）。Claudeで読み取る場合は画像がClaudeに送られます。画像は登録時にこのページの保存領域に保存されます。`),
+    h('p', { class: 'small muted' }, IS_LOCAL ? `名刺や資料を撮影するか、保存済みの画像（${SUPPORTED_LABEL}）を選ぶと、この端末内で文字を読み取って入力欄に反映します。画像は外部に送られず、この端末の中だけに保存されます。` : `名刺や資料を撮影するか、保存済みの画像（${SUPPORTED_LABEL}）を選ぶと、Claudeが文字を読み取って入力欄に反映します（Claudeを使えない環境では、この端末内で読み取ります）。Claudeで読み取る場合は画像がClaudeに送られます。画像は登録時にこのページの保存領域に保存されます。`),
     h('div', { class: 'row' }, [
       h('button', { type: 'button', class: 'btn btn-secondary', onclick: () => pick(true) }, 'カメラで撮影'),
       h('button', { type: 'button', class: 'btn btn-secondary', onclick: () => pick(false) }, '画像を取り込む'),
@@ -1302,6 +1303,25 @@ async function inferReadings(progress) {
   return targets.length;
 }
 
+function localStorageNotice() {
+  const box = h('div', { class: 'notice notice-warn' }, [
+    h('p', {}, h('strong', {}, 'データはこのスマホ（このブラウザ）の中だけに保存されています。')),
+    h('p', { class: 'small' }, '機種変更・ブラウザのデータ消去・アプリの削除で消えます。月に1回程度「JSONで書き出し」をして、ファイルアプリやクラウドに保管してください。'),
+  ]);
+  const st = h('p', { class: 'small' }, '保存状況を確認中…');
+  box.append(st);
+  window.LOCAL_STORE?.info().then((i) => {
+    const mb = (n) => (n == null ? '不明' : `${(n / 1024 / 1024).toFixed(1)}MB`);
+    fill(st, [
+      `使用量: ${mb(i.usage)}　`,
+      i.persisted ? '自動削除の防止: 有効　' : '自動削除の防止: 未設定　',
+      !i.standalone ? h('span', {}, '※ホーム画面に追加して開くと、データが消えにくくなります（iPhoneはSafariの共有ボタン →「ホーム画面に追加」）。') : '',
+      !i.persisted ? h('button', { type: 'button', class: 'btn btn-xs', onclick: async () => { const ok = await window.LOCAL_STORE.requestPersist(); toast(ok ? '自動削除の防止を有効にしました' : 'このブラウザでは設定できませんでした（ホーム画面に追加すると有効になる場合があります）', ok ? 'success' : 'info', 5000); } }, '自動削除の防止を有効にする') : '',
+    ]);
+  }).catch(() => { st.textContent = ''; });
+  return box;
+}
+
 function adminData(body) {
   const status = h('div', { 'aria-live': 'polite' });
   const render = () => {
@@ -1312,14 +1332,14 @@ function adminData(body) {
         h('div', { class: 'stat' }, [h('div', { class: 'stat-num' }, String(S.companies.size)), h('div', { class: 'stat-label' }, '企業')]),
         h('div', { class: 'stat' }, [h('div', { class: 'stat-num' }, String(S.images.size)), h('div', { class: 'stat-label' }, '画像')])])]),
       h('section', { class: 'card' }, [h('h2', { class: 'card-title' }, '書き出し（バックアップ）'),
-        h('p', { class: 'small' }, 'データはこのページ（claude.ai）の保存領域にあります。定期的に書き出して手元に保管してください。'),
+        IS_LOCAL ? localStorageNotice() : h('p', { class: 'small' }, 'データはこのページ（claude.ai）の保存領域にあります。定期的に書き出して手元に保管してください。'),
         h('div', { class: 'row' }, [
           h('button', { type: 'button', class: 'btn btn-secondary', onclick: () => saveFile(`receipt-search-${stamp()}.json`, JSON.stringify(exportData(), null, 2)) }, 'JSONで書き出し（全データ・移行用）'),
           h('button', { type: 'button', class: 'btn btn-secondary', onclick: () => saveFile(`receipt-search-${stamp()}.csv`, exportCsv()) }, 'CSVで書き出し（Excel用）'),
         ]),
         h('p', { class: 'small muted' }, '書き出したファイルには個人情報が含まれます。取り扱いにご注意ください。画像はファイルに含まれません。')]),
       h('section', { class: 'card' }, [h('h2', { class: 'card-title' }, '取り込み（PC版からの移行など）'),
-        h('p', { class: 'small' }, 'PC版の「管理 → データ管理 → JSONで書き出し」で作ったファイル、またはこのページで書き出したJSONを取り込めます。既存の登録情報には追加されます（上書きはしません）。'),
+        h('p', { class: 'small' }, IS_LOCAL ? 'claude.ai版（アーティファクト）やPC版で「JSONで書き出し」したファイル、またはこのアプリで書き出したJSONを取り込めます。既存の登録情報には追加されます（上書きはしません）。' : 'PC版の「管理 → データ管理 → JSONで書き出し」で作ったファイル、またはこのページで書き出したJSONを取り込めます。既存の登録情報には追加されます（上書きはしません）。'),
         h('button', { type: 'button', class: 'btn btn-secondary', onclick: async () => {
           const input = h('input', { type: 'file', accept: 'application/json,.json', class: 'sr-only' });
           document.body.append(input);
@@ -1360,6 +1380,7 @@ async function boot() {
     b.hidden = false;
   }
   if (!db) {
+    if (IS_LOCAL) { fill(outlet, h('div', { class: 'empty' }, [h('p', { class: 'empty-title' }, '登録情報を保存できません'), h('p', {}, 'このブラウザでは端末内の保存領域を使えません。プライベートブラウズ（シークレットモード）をやめて、通常の画面で開いてください。')])); return; }
     fill(outlet, h('div', { class: 'empty' }, [h('p', { class: 'empty-title' }, '登録情報を読み込めません'), h('p', {}, 'このページは claude.ai にログインした状態で開いてください。データは所有者と編集者だけが見られます。')]));
     return;
   }

@@ -3,7 +3,7 @@
 // 名刺から自動で顔を探すことはしない（誤った切り抜きを防ぐため、利用者が範囲を決める）。
 
 const PHOTO_SIZE = 400;
-const photoUrl = (p) => (p?.photo?.assetId ? `/_blob/${p.photo.assetId}` : null);
+const photoUrl = (p) => (p?.photo?.assetId ? assetUrl(p.photo.assetId) : null);
 
 /** 丸い顔写真（なければ頭文字） */
 function avatar(p, size = 'md') {

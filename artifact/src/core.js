@@ -2,6 +2,11 @@
 // データは claude.ai のデータベース（db 機能）に保存。読み書きは「投稿者（Contributor）」以上の権限を持つ人（所有者・編集者を含む）。閲覧者（Viewer）・組織外の閲覧者は読めない。
 // collections: companies / persons / images
 
+// 動作モード: 'artifact'（claude.ai）/ 'local'（GitHub Pages版・スマホ保存）。ビルド時に決まる
+const IS_LOCAL = typeof APP_MODE !== 'undefined' && APP_MODE === 'local';
+/** 保存した画像の表示用URL（アーティファクトは /_blob/、スマホ保存版は端末内の画像） */
+const assetUrl = (id) => (IS_LOCAL ? (window.LOCAL_STORE?.assetUrl(id) || null) : `/_blob/${id}`);
+
 // ---------- 画面部品 ----------
 function h(tag, attrs = {}, children = []) {
   const el = document.createElement(tag);
@@ -154,11 +159,11 @@ function dbErrorMessage(e) {
   if (e instanceof AppError) return e.message;
   if (e?.code === 'invalid_argument') { const b = document.getElementById('perm-banner'); if (b) b.hidden = false; }
   switch (e?.code) {
-    case 'quota_exceeded': return 'データベースの保存上限に達しました。不要な登録情報を削除してください。';
+    case 'quota_exceeded': return IS_LOCAL ? '端末の保存容量が足りません。不要な画像や登録情報を削除するか、端末の空き容量を増やしてください。' : 'データベースの保存上限に達しました。不要な登録情報を削除してください。';
     case 'resource_exhausted': return '短時間に操作が集中しました。少し待ってからもう一度お試しください。';
     case 'invalid_argument': return 'このアカウントは「閲覧のみ」のため保存できません。所有者と同じアカウントでログインするか、所有者にこのアカウントを「編集者」として招待してもらってください。ページの所有者に、共有メニューで「投稿者」以上の権限を付けてもらってください（同じアカウントでログインしている端末なら保存できます）。';
     case 'revoked': case 'not_granted': return 'このページのデータを使う権限がありません。';
-    default: return '保存できませんでした。通信状態を確認して、もう一度お試しください。';
+    default: return IS_LOCAL ? '保存できませんでした。端末の空き容量を確認して、もう一度お試しください。' : '保存できませんでした。通信状態を確認して、もう一度お試しください。';
   }
 }
 
@@ -450,7 +455,7 @@ function duplicateImageOwners(sha, originalHash) {
   for (const c of S.companies.values()) if ((c.imageIds || []).some((x) => ids.includes(x))) out.push({ type: 'company', id: c.id, name: c.name });
   return out;
 }
-const imageUrl = (imageId) => { const i = S.images.get(imageId); return i?.assetId ? `/_blob/${i.assetId}` : null; };
+const imageUrl = (imageId) => { const i = S.images.get(imageId); return i?.assetId ? assetUrl(i.assetId) : null; };
 
 function duplicateGroups() {
   const pg = new Map();

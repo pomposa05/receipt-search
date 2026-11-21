@@ -119,7 +119,7 @@ function createBulkImport({ onDone, presetGroupIds = [] }) {
     let img;
     try { const l = await loadImageFile(file); img = await renderImage(l.source, 0); } catch (e) { fill(imgStatus, h('div', { class: 'notice notice-error' }, e.message)); return; }
     const why = sampleUnavailableReason();
-    if (!why) {
+    if (!why && !IS_LOCAL) {
       fill(imgStatus, loading('Claudeが一覧を読み取っています…（通常10〜60秒）'));
       try {
         const r = await RT.sample.json(BULK_LIST_PROMPT, { images: [img.blob] });
