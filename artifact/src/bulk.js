@@ -47,6 +47,10 @@ function createBulkImport({ onDone, presetGroupIds = [] }) {
   const err = h('div', { class: 'notice notice-error', role: 'alert', hidden: true });
   const showErr = (m) => { err.textContent = m; err.hidden = !m; if (m) err.scrollIntoView({ behavior: 'smooth', block: 'center' }); };
 
+  const ensureExtra = (r) => (r.extra ||= { nameKana: '', department: '', title: '', receiptName: null, keywords: '', memo: '', groupIds: [] });
+  const rowGroups = (r) => validGroupIds([...groups.value(), ...((r.extra && r.extra.groupIds) || [])]);
+  const rowKeywords = (r) => tidyKeywords([keywords.value, r.extra?.keywords || ''].filter(Boolean).join(', '));
+  const rowReceipt = (r) => (r.extra?.receiptName != null && r.extra.receiptName !== '' ? r.extra.receiptName : receiptFor(r.company, r.name));
   const receiptFor = (company, name) => {
     const c = cleanLine(company); const n = cleanLine(name);
     if (receiptFmt.value === 'company-onchu') return c ? `${c} 御中` : `${n} 様`;
@@ -142,6 +146,66 @@ function createBulkImport({ onDone, presetGroupIds = [] }) {
     }
   }
 
+  /** 1行の詳細編集（通常の登録画面と同じ項目） */
+  async function editRow(r, onSaved) {
+    const ex = ensureExtra(r);
+    const name = textField('name', '名前', { value: r.name, maxlength: 100, placeholder: '空欄にすると企業のみの登録になります' });
+    const kana = kanaField('nameKana', '読み（任意）', () => name.value || company.value, ex.nameKana);
+    const company = textField('companyName', '企業名', { value: r.company, maxlength: 100, hint: '登録済みの企業に紐付けるかどうかは、表の「企業の扱い」で選びます。' });
+    const dept = textField('department', '部署（任意）', { value: ex.department, maxlength: 100 });
+    const title = textField('title', '役職（任意）', { value: ex.title, maxlength: 100 });
+    const autoCb = h('input', { type: 'checkbox', checked: ex.receiptName == null || ex.receiptName === '', id: 'bulk-receipt-auto' });
+    const receipt = textField('receiptName', '領収証宛名', { value: rowReceipt(r), maxlength: 200 });
+    const syncReceipt = () => { if (autoCb.checked) receipt.value = receiptFor(company.value, name.value); receipt.input.readOnly = autoCb.checked; receipt.input.classList.toggle('readonly', autoCb.checked); };
+    autoCb.addEventListener('change', syncReceipt);
+    name.input.addEventListener('input', syncReceipt);
+    company.input.addEventListener('input', syncReceipt);
+    receipt.wrap.append(h('label', { class: 'check small', for: 'bulk-receipt-auto' }, [autoCb, ' 一覧の設定（共通の「領収証宛名の書き方」）で自動作成する']));
+    const gp = groupPicker(ex.groupIds);
+    const common = groups.value();
+    const kw = textField('keywords', 'キーワード（任意）', { value: ex.keywords, maxlength: 1000, hint: keywords.value.trim() ? `共通のキーワード「${tidyKeywords(keywords.value)}」も付きます。` : '複数ある場合は「,」や「、」で区切ってください。' });
+    const memo = textField('memo', 'メモ（任意）', { multiline: true, value: ex.memo, maxlength: 100000 });
+    syncReceipt();
+    const v = await dialog({
+      title: `${r.name || r.company || '新しい行'} の詳細`,
+      body: [
+        h('div', { class: 'grid-2' }, [name.wrap, kana.wrap]),
+        company.wrap,
+        h('div', { class: 'grid-2' }, [dept.wrap, title.wrap]),
+        receipt.wrap,
+        gp.wrap,
+        common.length ? h('p', { class: 'small muted' }, ['共通のグループ ', groupChips(common, { small: true }), ' も付きます。']) : null,
+        kw.wrap,
+        memo.wrap,
+        h('p', { class: 'small muted' }, 'まだ登録はされません。「③ 確認へ進む」の確認画面で内容を確かめてから登録します。'),
+      ],
+      buttons: [{ label: 'キャンセル', value: null }, { label: 'この内容にする', kind: 'primary', value: () => ({
+        name: cleanLine(name.value), company: cleanLine(company.value), nameKana: cleanLine(kana.value), department: cleanLine(dept.value), title: cleanLine(title.value),
+        receiptName: autoCb.checked ? null : cleanLine(receipt.value), keywords: tidyKeywords(clean(kw.value)), memo: clean(memo.value), groupIds: gp.value(),
+      }) }],
+    });
+    gp.cleanup?.();
+    if (!v) return;
+    if (v.company !== r.company) r.link = 'auto';
+    r.name = v.name; r.company = v.company;
+    Object.assign(ex, { nameKana: v.nameKana, department: v.department, title: v.title, receiptName: v.receiptName, keywords: v.keywords, memo: v.memo, groupIds: v.groupIds });
+    if (r.uncertain && !hasUnknown(r.company) && !hasUnknown(r.name) && r.company && r.name) { r.uncertain = false; if (!r.note.includes('同じ企業に同じ名前')) r.note = ''; }
+    onSaved();
+  }
+  /** 行の追加情報の要約（表と確認画面で使う） */
+  function extraSummary(r, { full = false } = {}) {
+    const ex = r.extra || {};
+    const items = [];
+    const gs = rowGroups(r);
+    if (gs.length) items.push(groupChips(gs, { small: true }));
+    if (ex.nameKana) items.push(h('span', { class: 'xtag' }, `読み: ${ex.nameKana}`));
+    if (ex.department || ex.title) items.push(h('span', { class: 'xtag' }, [ex.department, ex.title].filter(Boolean).join(' ')));
+    if (ex.receiptName) items.push(h('span', { class: 'xtag' }, '宛名: 手入力'));
+    if (ex.keywords) items.push(h('span', { class: 'xtag' }, `キーワード: ${ex.keywords}`));
+    if (ex.memo) items.push(h('span', { class: 'xtag', title: ex.memo }, full ? `メモ: ${ex.memo.length > 30 ? `${ex.memo.slice(0, 30)}…` : ex.memo}` : 'メモあり'));
+    return items.length ? h('div', { class: 'xsummary' }, items) : null;
+  }
+
   // ---------- ② 表で修正 ----------
   function renderTable() {
     stage = 'table';
@@ -183,9 +247,10 @@ function createBulkImport({ onDone, presetGroupIds = [] }) {
       return h('tr', { class: r.include ? '' : 'row-excluded' }, [
         h('td', { 'data-label': '登録' }, inc),
         h('td', { 'data-label': '企業名' }, [company, linkCtl]),
-        h('td', { 'data-label': '名前' }, name),
+        h('td', { 'data-label': '名前' }, [name, extraSummary(r)]),
         h('td', { 'data-label': '状態' }, h('div', { class: 'bulk-notes' }, notes.length ? notes : h('span', { class: 'small muted' }, '—'))),
         h('td', { class: 'actions' }, [
+          h('button', { type: 'button', class: 'btn btn-xs btn-edit', title: '読み・部署・役職・領収証宛名・グループ・キーワード・メモを入力します', onclick: () => editRow(r, refresh) }, '詳細を編集'),
           i > 0 ? h('button', { type: 'button', class: 'btn btn-xs', title: '上の行とつなげて1行にします', onclick: () => {
             const up = rows[i - 1];
             up.company = cleanLine(`${up.company} ${r.company}`); up.name = cleanLine(`${up.name} ${r.name}`); up.link = 'auto';
@@ -199,7 +264,7 @@ function createBulkImport({ onDone, presetGroupIds = [] }) {
     fill(root,
       h('section', { class: 'card' }, [
         h('div', { class: 'card-head' }, [h('h2', { class: 'card-title' }, '② 内容を修正する'), counter]),
-        h('p', { class: 'small muted' }, '行ごとに企業名と名前を直せます。2行に分かれてしまった項目は「上と結合」でつなげてください。登録しない行はチェックを外します。'),
+        h('p', { class: 'small muted' }, '行ごとに企業名と名前を直せます。読み・部署・役職・領収証宛名・グループ・キーワード・メモは「詳細を編集」で入力できます（通常の登録画面と同じ項目）。2行に分かれてしまった項目は「上と結合」でつなげてください。登録しない行はチェックを外します。'),
         h('div', { class: 'table-wrap' }, h('table', { class: 'table bulk-table' }, [h('thead', {}, h('tr', {}, ['登録', '企業名', '名前', '状態', ''].map((x) => h('th', {}, x)))), tbody])),
         h('div', { class: 'row' }, h('button', { type: 'button', class: 'btn btn-ghost btn-sm', onclick: () => { rows.push({ key: ++seq, include: true, company: '', name: '', uncertain: false, note: '', link: 'auto' }); refresh(); } }, '＋ 行を追加')),
       ]),
@@ -233,7 +298,7 @@ function createBulkImport({ onDone, presetGroupIds = [] }) {
           if (!newCompanies.has(k)) newCompanies.set(k, r.company);
         }
       }
-      return { r, a, companyAction, companyLabel, receipt: receiptFor(r.company, r.name) };
+      return { r, a, companyAction, companyLabel, receipt: rowReceipt(r) };
     });
     // 同じ一覧の中で同じ新しい企業を使う行には、その旨を表示
     const countByKey = new Map();
@@ -271,16 +336,17 @@ function createBulkImport({ onDone, presetGroupIds = [] }) {
         ]) : null,
         h('p', { class: 'small muted' }, ['共通キーワード: ', tidyKeywords(keywords.value) || '（なし）', '　グループ: ', groupChips(groups.value(), { small: true, empty: '（なし）' })]),
         h('div', { class: 'table-wrap' }, h('table', { class: 'table' }, [
-          h('thead', {}, h('tr', {}, ['', '企業名', '企業の扱い', '名前', '領収証宛名'].map((x) => h('th', {}, x)))),
+          h('thead', {}, h('tr', {}, ['', '企業名', '企業の扱い', '名前', '領収証宛名', 'グループ・メモなど'].map((x) => h('th', {}, x)))),
           h('tbody', {}, p.items.map((x, i) => h('tr', {}, [
             h('td', { 'data-label': 'No.' }, [String(i + 1), isWarn(x) ? h('span', { class: 'badge badge-warn' }, '要確認') : null]),
             h('td', { 'data-label': '企業名' }, x.r.company ? markUnknown(x.r.company) : h('span', { class: 'muted' }, '（なし）')),
             h('td', { 'data-label': '企業の扱い' }, x.companyLabel || '—'),
             h('td', { 'data-label': '名前' }, x.r.name ? markUnknown(x.r.name) : h('span', { class: 'muted' }, '（企業のみ）')),
             h('td', { 'data-label': '領収証宛名' }, markUnknown(x.receipt)),
+            h('td', { 'data-label': 'グループ・メモなど' }, [extraSummary(x.r, { full: true }) || h('span', { class: 'muted' }, '—'), (!x.r.name && x.companyAction === 'existing' && (x.r.extra?.memo || x.r.extra?.keywords)) ? h('div', { class: 'small warn-text' }, '登録済みの企業には、グループだけを追加します（メモ・キーワードは企業の画面で編集してください）') : null]),
           ]))),
         ])),
-        h('label', { class: 'check ocr-confirm' }, [check, unknownCount ? ` 上の内容を確認しました（「?」が残っている${unknownCount}件も、このまま登録します）` : ' 上の内容を確認しました（企業名・名前・企業の扱い・領収証宛名）']),
+        h('label', { class: 'check ocr-confirm' }, [check, unknownCount ? ` 上の内容を確認しました（「?」が残っている${unknownCount}件も、このまま登録します）` : ' 上の内容を確認しました（企業名・名前・企業の扱い・領収証宛名・グループ・メモなど）']),
       ]),
       err,
       h('div', { class: 'form-actions' }, [h('button', { type: 'button', class: 'btn btn-ghost', onclick: renderTable }, '← 戻って修正する'), regBtn]),
@@ -308,15 +374,27 @@ function createBulkImport({ onDone, presetGroupIds = [] }) {
           const k = normalize(x.r.company);
           companyId = createdCompany.get(k) || null;
           if (!companyId) {
-            const c = await createCompany({ name: x.r.company, keywords: kw, receiptName: receiptFmt.value === 'company-onchu' ? `${cleanLine(x.r.company)} 御中` : `${cleanLine(x.r.company)} 様`, confirmDuplicate: true, groupIds: x.r.name ? [] : gids });
+            const onlyCompany = !x.r.name;
+            const c = await createCompany({
+              name: x.r.company, nameKana: onlyCompany ? (x.r.extra?.nameKana || '') : '',
+              keywords: onlyCompany ? rowKeywords(x.r) : kw,
+              receiptName: onlyCompany ? x.receipt : (receiptFmt.value === 'company-onchu' ? `${cleanLine(x.r.company)} 御中` : `${cleanLine(x.r.company)} 様`),
+              memo: onlyCompany ? (x.r.extra?.memo || '') : '',
+              confirmDuplicate: true, groupIds: onlyCompany ? rowGroups(x.r) : [],
+            });
             companyId = c.id; createdCompany.set(k, companyId);
           }
         }
         if (x.r.name) {
-          const r = await createPerson({ name: x.r.name, keywords: kw, receiptName: x.receipt, company: companyId ? { mode: 'existing', id: companyId } : { mode: 'none' }, groupIds: gids, confirmDuplicate: true });
+          const ex = x.r.extra || {};
+          const r = await createPerson({
+            name: x.r.name, nameKana: ex.nameKana || '', department: ex.department || '', title: ex.title || '',
+            keywords: rowKeywords(x.r), receiptName: x.receipt, memo: ex.memo || '',
+            company: companyId ? { mode: 'existing', id: companyId } : { mode: 'none' }, groupIds: rowGroups(x.r), confirmDuplicate: true,
+          });
           done.push({ type: 'person', id: r.id, label: `${x.r.name}（${x.r.company || '企業なし'}）` });
         } else {
-          if (gids.length && companyId && x.companyAction === 'existing') for (const g of gids) await setMembership('company', companyId, g, true);
+          if (companyId && x.companyAction === 'existing') for (const g of rowGroups(x.r)) await setMembership('company', companyId, g, true);
           done.push({ type: 'company', id: companyId, label: x.r.company });
         }
         x.r.include = false; // 登録済みの行は、失敗時に戻ったとき二重登録しないよう外す

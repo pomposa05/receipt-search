@@ -48,6 +48,23 @@ const docs = () => page.evaluate(() => [...window.__docs].map(([p, d]) => ({ p, 
     const v = await page.$$eval('.bulk-table tbody tr:nth-child(4) input.input', (i) => i.map((x) => x.value));
     assert(v[0] === '東西テレビ（株）南支局 みなみビジョン' && v[1] === '森下', JSON.stringify(v));
   });
+  await step('② 詳細を編集: 読み・部署・役職・宛名・グループ・キーワード・メモ', async () => {
+    await page.click('.bulk-table tbody tr:nth-child(2) >> text=詳細を編集');
+    await page.waitForSelector('dialog >> text=の詳細');
+    await page.fill('dialog input[data-key=nameKana]', 'ケンクン');
+    await page.fill('dialog input[data-key=department]', '営業部');
+    await page.fill('dialog input[data-key=title]', '課長');
+    await page.uncheck('#bulk-receipt-auto');
+    await page.fill('dialog input[data-key=receiptName]', '（有）さくら園芸 経理部 御中');
+    await page.fill('dialog .gnew input', '協賛2026'); await page.click('dialog >> text=＋ 作成して追加');
+    await page.waitForSelector('dialog .gtoggle.on >> text=協賛2026');
+    await page.fill('dialog input[data-key=keywords]', 'ゴルフ');
+    await page.fill('dialog textarea[data-key=memo]', '但し書きは「お品代」');
+    await page.screenshot({ path: path.join(out, 'bulk-7-detail.png'), fullPage: true });
+    await page.click('dialog >> text=この内容にする');
+    const t = await page.locator('.bulk-table tbody tr:nth-child(2)').innerText();
+    assert(t.includes('協賛2026') && t.includes('読み: ケンクン') && t.includes('営業部 課長') && t.includes('メモあり') && t.includes('宛名: 手入力'), t);
+  });
   await step('③ 確認画面: チェックするまで登録できない', async () => {
     await page.click('text=③ 確認へ進む');
     await page.waitForSelector('.confirm-card');
@@ -81,6 +98,19 @@ const docs = () => page.evaluate(() => [...window.__docs].map(([p, d]) => ({ p, 
     const karino = pers.find((p) => p.name === '北野さん ジョー');
     assert(karino && karino.keywords === '青年部' && karino.receiptName === '（有）インテリアみなと 様', JSON.stringify(karino));
     await page.screenshot({ path: path.join(out, 'bulk-3-done.png'), fullPage: true });
+  });
+  await step('詳細で入力した項目がそのまま保存される', async () => {
+    const d = await docs();
+    const p = d.find((x) => x.p.startsWith('persons/') && x.name === 'けんくん');
+    const g = d.find((x) => x.p.startsWith('groups/') && x.name === '協賛2026');
+    assert(p && g, 'person/group');
+    assert(p.nameKana === 'ケンクン' && p.department === '営業部' && p.title === '課長', JSON.stringify(p));
+    assert(p.receiptName === '（有）さくら園芸 経理部 御中', p.receiptName);
+    assert(p.keywords === '青年部, ゴルフ', p.keywords);
+    assert(p.memo === '但し書きは「お品代」' && p.memoVersion === 1, p.memo);
+    assert(p.groupIds.includes(g.p.split('/')[1]), 'group');
+    const other = d.find((x) => x.p.startsWith('persons/') && x.name === 'ゆうくん');
+    assert(other.keywords === '青年部' && !other.memo && other.groupIds.length === 0, '他の行に影響しない');
   });
   await step('検索で確認（キーワード「青年部」）', async () => {
     await page.click('text=検索画面で確認する');
