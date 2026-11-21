@@ -114,9 +114,9 @@ function viewGroup({ outlet, params }) {
     const memberRow = (x, type) => h('li', { class: 'gm-row' }, [
       h('button', { type: 'button', class: 'gm-main', onclick: () => go(type, { id: x.id }) }, [
         type === 'person' ? avatar(S.persons.get(x.id) || x, 'xs') : h('span', { class: 'type-tag type-co' }, '企業'),
-        h('span', { class: 'gm-name' }, x.name),
-        type === 'person' ? h('span', { class: 'small muted' }, x.companyName || '企業なし') : null,
-        h('span', { class: 'gm-receipt small' }, x.receiptName ? `宛名: ${x.receiptName}` : ''),
+        h('span', { class: 'gm-receipt' }, x.receiptName || '（宛名未設定）'),
+        type === 'person' ? h('span', { class: 'gm-name' }, x.name) : null,
+        h('span', { class: 'small muted' }, type === 'person' ? (x.companyName || '企業なし') : x.name),
       ]),
       h('button', { type: 'button', class: 'btn btn-xs btn-danger-ghost', onclick: async () => {
         if (!(await confirmDialog('グループから外します', [`「${x.name}」をグループ「${g.name}」から外します。`, '登録情報そのものは削除されません。'], { okLabel: '外す' }))) return;

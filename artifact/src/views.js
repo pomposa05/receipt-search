@@ -131,10 +131,10 @@ function personCard(p) {
   return h('li', {}, h('button', { type: 'button', class: `result-card ${p.isCandidate ? 'is-candidate' : ''}`, onclick: () => openPerson(p.id) }, [
     avatar(S.persons.get(p.id) || p, 'sm'),
     h('span', { class: 'rc-main' }, [
-      h('span', { class: 'rc-name' }, [h('span', { class: 'type-tag' }, '人物'), p.name, p.nameKana ? h('span', { class: 'rc-kana' }, p.nameKana) : null]),
-      h('span', { class: 'rc-company' }, p.companyName || h('span', { class: 'muted' }, '企業の登録なし')),
+      h('span', { class: 'rc-row rc-receipt-top' }, [h('span', { class: 'rc-label' }, '宛名'), h('span', {}, p.receiptName || h('span', { class: 'muted' }, '（未設定）'))]),
+      h('span', { class: 'rc-row rc-person' }, [h('span', { class: 'rc-label' }, '人物'), h('span', {}, [h('span', { class: 'rc-person-name' }, p.name), p.nameKana ? h('span', { class: 'rc-kana' }, ` ${p.nameKana}`) : null])]),
+      h('span', { class: 'rc-row rc-company' }, [h('span', { class: 'rc-label' }, '企業名'), h('span', {}, p.companyName || h('span', { class: 'muted' }, '企業の登録なし'))]),
       (p.department || p.title) ? h('span', { class: 'rc-sub' }, [p.department, p.title].filter(Boolean).join(' ')) : null,
-      p.receiptName ? h('span', { class: 'rc-receipt' }, [h('span', { class: 'rc-label' }, '宛名'), p.receiptName]) : null,
       groupChips(S.persons.get(p.id)?.groupIds, { small: true }),
       badges(p),
     ]),
@@ -144,14 +144,16 @@ function personCard(p) {
 function companyCard(c) {
   return h('li', {}, h('div', { class: `result-card company ${c.isCandidate ? 'is-candidate' : ''}` }, [
     h('div', { class: 'rc-main' }, [
-      h('button', { type: 'button', class: 'rc-name rc-link', onclick: () => openCompany(c.id) }, [h('span', { class: 'type-tag type-co' }, '企業'), c.name, c.nameKana ? h('span', { class: 'rc-kana' }, c.nameKana) : null]),
-      c.receiptName ? h('div', { class: 'rc-receipt' }, [h('span', { class: 'rc-label' }, '宛名'), c.receiptName]) : null,
-      groupChips(S.companies.get(c.id)?.groupIds, { small: true }),
-      h('div', { class: 'rc-persons' }, [
-        h('span', { class: 'rc-label' }, `関連人物 ${c.personCount}名`),
-        c.persons?.length ? h('span', { class: 'chips' }, c.persons.map((p) => h('button', { type: 'button', class: 'chip chip-person', onclick: () => openPerson(p.id) }, p.name))) : h('span', { class: 'muted small' }, 'なし'),
-        c.personCount > (c.persons?.length || 0) ? h('button', { type: 'button', class: 'linkish small', onclick: () => openCompany(c.id) }, 'すべて表示') : null,
+      h('div', { class: 'rc-row rc-receipt-top' }, [h('span', { class: 'rc-label' }, '宛名'), h('span', {}, c.receiptName || h('span', { class: 'muted' }, '（未設定）'))]),
+      h('div', { class: 'rc-row' }, [
+        h('span', { class: 'rc-label' }, '人物'),
+        h('span', { class: 'chips' }, [
+          c.persons?.length ? c.persons.map((p) => h('button', { type: 'button', class: 'chip chip-person', onclick: () => openPerson(p.id) }, p.name)) : h('span', { class: 'muted small' }, 'なし'),
+          c.personCount > (c.persons?.length || 0) ? h('button', { type: 'button', class: 'linkish small', onclick: () => openCompany(c.id) }, `すべて表示（${c.personCount}名）`) : null,
+        ]),
       ]),
+      h('div', { class: 'rc-row rc-company' }, [h('span', { class: 'rc-label' }, '企業名'), h('span', {}, [h('button', { type: 'button', class: 'rc-link rc-company-link', onclick: () => openCompany(c.id) }, c.name), c.nameKana ? h('span', { class: 'rc-kana' }, ` ${c.nameKana}`) : null])]),
+      groupChips(S.companies.get(c.id)?.groupIds, { small: true }),
       badges(c),
     ]),
     h('div', { class: 'rc-id' }, shortId(c.id)),
@@ -1085,9 +1087,9 @@ function viewCompany({ outlet, params }) {
       h('section', { class: 'card' }, [
         h('div', { class: 'card-head' }, [h('h2', { class: 'card-title' }, `この企業の人物（${members.length}名）`), h('button', { type: 'button', class: 'btn btn-secondary btn-sm', onclick: () => go('register', { companyId: c.id }) }, '＋ この企業に人物を追加')]),
         members.length ? h('ul', { class: 'person-list' }, members.map((p) => h('li', {}, h('button', { type: 'button', class: 'person-row', onclick: () => openPerson(p.id) }, [
+          h('span', { class: 'pr-receipt' }, p.receiptName || '（宛名未設定）'),
           h('span', { class: 'pr-name' }, [avatar(p, 'xs'), ' ', p.name, p.nameKana ? h('span', { class: 'muted small' }, ` ${p.nameKana}`) : null]),
           h('span', { class: 'small muted' }, [p.department, p.title].filter(Boolean).join(' ')),
-          h('span', { class: 'small' }, p.receiptName ? `宛名: ${p.receiptName}` : ''),
           h('span', { class: 'small muted' }, p.id)])))) : h('p', { class: 'muted' }, 'まだ人物が登録されていません。'),
       ]),
       h('section', { class: 'card' }, [
@@ -1158,14 +1160,16 @@ const byStr = (f) => (a, b) => String(f(a)).localeCompare(String(f(b)), 'ja');
 const byDesc = (f) => (a, b) => String(f(b)).localeCompare(String(f(a))) || cmpId(b.id, a.id);
 function adminPersons(body) {
   return listTable(body, {
-    columns: ['ID', '名前', '企業名', '領収証宛名', '最終更新', '操作'], emptyText: '該当する人物はありません。',
+    columns: ['ID', '領収証宛名', '名前', '企業名', '最終更新', '操作'], emptyText: '該当する人物はありません。',
     getItems: () => [...S.persons.values()].map(personSummary).map((p) => ({ ...p, version: S.persons.get(p.id).version })),
     filterText: (p) => `${p.name} ${p.nameKana} ${p.companyName} ${p.receiptName} ${withGroupNames(S.persons.get(p.id) || {})}`,
     sorters: [['updated', '更新日時が新しい順', byDesc((p) => p.updatedAt)], ['created', '登録日時が新しい順', byDesc((p) => p.createdAt)], ['name', '名前順', byStr((p) => p.nameKana || p.name)], ['company', '企業名順', byStr((p) => p.companyName)]],
     row: (p) => h('tr', {}, [
-      h('td', { 'data-label': 'ID' }, p.id), h('td', { 'data-label': '名前' }, h('button', { type: 'button', class: 'linkish', onclick: () => openPerson(p.id) }, p.name)),
+      h('td', { 'data-label': 'ID' }, p.id),
+      h('td', { 'data-label': '領収証宛名' }, p.receiptName),
+      h('td', { 'data-label': '名前' }, h('button', { type: 'button', class: 'linkish', onclick: () => openPerson(p.id) }, p.name)),
       h('td', { 'data-label': '企業名' }, p.companyId ? h('button', { type: 'button', class: 'linkish', onclick: () => openCompany(p.companyId) }, p.companyName) : h('span', { class: 'muted' }, '—')),
-      h('td', { 'data-label': '領収証宛名' }, p.receiptName), h('td', { 'data-label': '最終更新' }, formatDateTime(p.updatedAt)),
+      h('td', { 'data-label': '最終更新' }, formatDateTime(p.updatedAt)),
       h('td', { class: 'actions' }, [
         h('button', { type: 'button', class: 'btn btn-xs', onclick: () => go('editPerson', { id: p.id }) }, '編集'),
         h('button', { type: 'button', class: 'btn btn-xs btn-danger-ghost', onclick: async () => {
@@ -1178,13 +1182,16 @@ function adminPersons(body) {
 }
 function adminCompanies(body) {
   return listTable(body, {
-    columns: ['ID', '企業名', '人物数', '領収証宛名', '最終更新', '操作'], emptyText: '該当する企業はありません。',
+    columns: ['ID', '領収証宛名', '人物数', '企業名', '最終更新', '操作'], emptyText: '該当する企業はありません。',
     getItems: () => [...S.companies.values()].map((c) => ({ ...companySummary(c), version: c.version })),
     filterText: (c) => `${c.name} ${c.nameKana} ${c.receiptName} ${c.keywords}`,
     sorters: [['updated', '更新日時が新しい順', byDesc((c) => c.updatedAt)], ['created', '登録日時が新しい順', byDesc((c) => c.createdAt)], ['name', '企業名順', byStr((c) => c.nameKana || c.name)], ['count', '人物数が多い順', (a, b) => b.personCount - a.personCount || cmpId(a.id, b.id)]],
     row: (c) => h('tr', {}, [
-      h('td', { 'data-label': 'ID' }, c.id), h('td', { 'data-label': '企業名' }, h('button', { type: 'button', class: 'linkish', onclick: () => openCompany(c.id) }, c.name)),
-      h('td', { 'data-label': '人物数' }, `${c.personCount}名`), h('td', { 'data-label': '領収証宛名' }, c.receiptName), h('td', { 'data-label': '最終更新' }, formatDateTime(c.updatedAt)),
+      h('td', { 'data-label': 'ID' }, c.id),
+      h('td', { 'data-label': '領収証宛名' }, c.receiptName),
+      h('td', { 'data-label': '人物数' }, `${c.personCount}名`),
+      h('td', { 'data-label': '企業名' }, h('button', { type: 'button', class: 'linkish', onclick: () => openCompany(c.id) }, c.name)),
+      h('td', { 'data-label': '最終更新' }, formatDateTime(c.updatedAt)),
       h('td', { class: 'actions' }, [
         h('button', { type: 'button', class: 'btn btn-xs', onclick: () => go('editCompany', { id: c.id }) }, '編集'),
         h('button', { type: 'button', class: 'btn btn-xs btn-danger-ghost', onclick: async () => {

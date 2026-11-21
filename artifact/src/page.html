@@ -299,6 +299,17 @@ button.gchip { cursor: pointer; }
 .xtag { font-size: .74rem; padding: 1px 7px; border-radius: 6px; background: var(--surface-2); color: var(--muted); border: 1px solid var(--border); max-width: 22em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .btn-edit { background: var(--primary-soft); color: var(--primary); border-color: transparent; }
 input.readonly { background: var(--surface-2); color: var(--muted); }
+.rc-row { display: grid; grid-template-columns: 3.4rem minmax(0, 1fr); gap: 8px; align-items: baseline; }
+.rc-row > .rc-label { justify-self: stretch; text-align: center; font-size: .74rem; font-weight: 600; }
+@media (max-width: 560px) { .result-card > .rc-id { display: none; } }
+.rc-row > :last-child { min-width: 0; word-break: break-word; }
+.rc-receipt-top { font-size: 1.08rem; font-weight: 700; color: var(--text); }
+.rc-person-name { font-weight: 700; }
+.rc-company { font-weight: 500; }
+.rc-company-link { background: none; border: 0; padding: 0; font: inherit; font-weight: 600; color: var(--primary); cursor: pointer; text-align: left; }
+.pr-receipt { font-weight: 700; }
+@media (min-width: 641px) { .person-row { grid-template-columns: 1.6fr 1.2fr 1fr auto; } }
+.gm-receipt { font-weight: 700; }
 .stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
 .stat { background: var(--surface-2); border-radius: 10px; padding: 12px; text-align: center; }
 .stat-num { font-size: 1.6rem; font-weight: 700; font-variant-numeric: tabular-nums; }
