@@ -458,10 +458,15 @@ button.gchip { cursor: pointer; }
 .avatar-empty { background: var(--primary-soft); color: var(--secondary-ink); }
 .avatar-btn { padding: 0; border: 0; background: none; border-radius: 50%; cursor: pointer; flex: none; }
 .avatar-btn:hover .avatar { box-shadow: 0 0 0 3px var(--primary-soft); }
+.avatar-zoom { display: inline-grid; flex: none; border-radius: 50%; cursor: zoom-in; align-self: flex-start; }
+.avatar-zoom:hover .avatar, .avatar-zoom:focus-visible .avatar { box-shadow: 0 0 0 3px var(--primary-soft); }
+.avatar-btn { cursor: zoom-in; }
+.photo-zoom { display: block; width: min(80vw, 420px); aspect-ratio: 1; object-fit: cover; border-radius: 12px; margin: 0 auto; background: var(--surface-2); cursor: zoom-out; }
+.photo-zoom-cap { text-align: center; margin: 8px 0 0; }
 .person-head { display: flex; gap: 16px; align-items: center; flex-wrap: wrap; }
 .person-head-main { display: grid; gap: 6px; min-width: 0; flex: 1; }
 .result-card { align-items: flex-start; }
-.result-card > .avatar { margin-top: 2px; }
+.result-card > .avatar, .result-card > .avatar-zoom { margin-top: 2px; }
 .photo-sources { display: grid; gap: 10px; }
 .photo-source { display: grid; gap: 6px; }
 .thumb-btn { padding: 0; border: 2px solid transparent; border-radius: 10px; background: none; cursor: pointer; }
@@ -1942,6 +1947,34 @@ function avatar(p, size = 'md') {
   return h('span', { class: `avatar avatar-${size} avatar-empty`, 'aria-hidden': 'true' }, initial);
 }
 
+/** 顔写真を大きく表示する（写真がなければ追加の画面へ） */
+async function showPersonPhoto(p) {
+  const cur = S.persons.get(p.id) || p;
+  const url = photoUrl(cur);
+  if (!url) { choosePersonPhoto(cur); return; }
+  const c = cur.companyId ? S.companies.get(cur.companyId) : null;
+  const v = await dialog({
+    title: `${cur.name}の写真`,
+    body: (done) => {
+      const img = h('img', { class: 'photo-zoom', src: url, alt: `${cur.name}の写真` });
+      img.addEventListener('click', () => done(null));
+      return [img, c ? h('p', { class: 'small muted photo-zoom-cap' }, c.name) : null];
+    },
+    buttons: [{ label: '写真を変更', value: 'change' }, { label: '閉じる', value: true, kind: 'primary' }],
+  });
+  if (v === 'change') choosePersonPhoto(cur);
+}
+/** 一覧の小さい写真: タップで拡大（行全体のタップ＝詳細を開く、とは別に動く） */
+function zoomableAvatar(p, size) {
+  const a = avatar(p, size);
+  if (!photoUrl(p)) return a;
+  const w = h('span', { class: 'avatar-zoom', role: 'button', tabindex: '0', title: '写真を拡大', 'aria-label': `${p.name}の写真を拡大` }, a);
+  const open = (e) => { e.stopPropagation(); e.preventDefault(); showPersonPhoto(p); };
+  w.addEventListener('click', open);
+  w.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') open(e); });
+  return w;
+}
+
 async function setPersonPhoto(personId, blob) {
   if (!RT.assets) throw new AppError('NO_ASSETS', 'このアカウントでは写真を保存できません（ページの所有者・編集者のみ保存できます）。');
   const cur = await fresh('persons', personId);
@@ -2256,7 +2289,7 @@ function viewGroup({ outlet, params }) {
     const memberRow = (x, type) => h('li', { class: 'gm-row' }, [
       selCheckbox(type, x.id, x.name),
       h('button', { type: 'button', class: 'gm-main', onclick: () => go(type, { id: x.id }) }, [
-        type === 'person' ? avatar(S.persons.get(x.id) || x, 'xs') : h('span', { class: 'type-tag type-co' }, '企業'),
+        type === 'person' ? zoomableAvatar(S.persons.get(x.id) || x, 'xs') : h('span', { class: 'type-tag type-co' }, '企業'),
         h('span', { class: 'gm-receipt' }, x.receiptName || '（宛名未設定）'),
         type === 'person' ? h('span', { class: 'gm-name' }, x.name) : null,
         h('span', { class: 'small muted' }, type === 'person' ? (x.companyName || '企業なし') : x.name),
@@ -2961,7 +2994,7 @@ function badges(x) {
 }
 function personCard(p) {
   return h('li', { class: 'sel-wrap' }, [selCheckbox('person', p.id, p.name), h('button', { type: 'button', class: `result-card ${p.isCandidate ? 'is-candidate' : ''}`, onclick: () => openPerson(p.id) }, [
-    avatar(S.persons.get(p.id) || p, 'sm'),
+    zoomableAvatar(S.persons.get(p.id) || p, 'sm'),
     h('span', { class: 'rc-main' }, [
       h('span', { class: 'rc-row rc-receipt-top' }, [h('span', { class: 'rc-label' }, '宛名'), h('span', {}, p.receiptName || h('span', { class: 'muted' }, '（未設定）'))]),
       h('span', { class: 'rc-row rc-person' }, [h('span', { class: 'rc-label' }, '人物'), h('span', {}, [h('span', { class: 'rc-person-name' }, p.name), p.nameKana ? h('span', { class: 'rc-kana' }, ` ${p.nameKana}`) : null])]),
@@ -3845,7 +3878,7 @@ function viewPerson({ outlet, params }) {
       h('div', { class: 'page-head' }, [
         backLink('← 戻る'),
         h('div', { class: 'person-head' }, [
-          h('button', { type: 'button', class: 'avatar-btn', title: photoUrl(p) ? '写真を変更' : '写真を追加', onclick: () => choosePersonPhoto(p) }, avatar(p, 'lg')),
+          h('button', { type: 'button', class: 'avatar-btn', title: photoUrl(p) ? '写真を拡大' : '写真を追加', 'aria-label': photoUrl(p) ? `${p.name}の写真を拡大` : '写真を追加', onclick: () => showPersonPhoto(p) }, avatar(p, 'lg')),
           h('div', { class: 'person-head-main' }, [
             h('div', { class: 'title-row' }, [h('h1', {}, p.name), h('span', { class: 'id-badge' }, `人物ID ${p.id}`)]),
             p.nameKana ? h('div', { class: 'kana' }, p.nameKana) : null,

@@ -282,10 +282,15 @@ button.gchip { cursor: pointer; }
 .avatar-empty { background: var(--primary-soft); color: var(--secondary-ink); }
 .avatar-btn { padding: 0; border: 0; background: none; border-radius: 50%; cursor: pointer; flex: none; }
 .avatar-btn:hover .avatar { box-shadow: 0 0 0 3px var(--primary-soft); }
+.avatar-zoom { display: inline-grid; flex: none; border-radius: 50%; cursor: zoom-in; align-self: flex-start; }
+.avatar-zoom:hover .avatar, .avatar-zoom:focus-visible .avatar { box-shadow: 0 0 0 3px var(--primary-soft); }
+.avatar-btn { cursor: zoom-in; }
+.photo-zoom { display: block; width: min(80vw, 420px); aspect-ratio: 1; object-fit: cover; border-radius: 12px; margin: 0 auto; background: var(--surface-2); cursor: zoom-out; }
+.photo-zoom-cap { text-align: center; margin: 8px 0 0; }
 .person-head { display: flex; gap: 16px; align-items: center; flex-wrap: wrap; }
 .person-head-main { display: grid; gap: 6px; min-width: 0; flex: 1; }
 .result-card { align-items: flex-start; }
-.result-card > .avatar { margin-top: 2px; }
+.result-card > .avatar, .result-card > .avatar-zoom { margin-top: 2px; }
 .photo-sources { display: grid; gap: 10px; }
 .photo-source { display: grid; gap: 6px; }
 .thumb-btn { padding: 0; border: 2px solid transparent; border-radius: 10px; background: none; cursor: pointer; }

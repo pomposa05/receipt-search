@@ -130,7 +130,7 @@ function badges(x) {
 }
 function personCard(p) {
   return h('li', { class: 'sel-wrap' }, [selCheckbox('person', p.id, p.name), h('button', { type: 'button', class: `result-card ${p.isCandidate ? 'is-candidate' : ''}`, onclick: () => openPerson(p.id) }, [
-    avatar(S.persons.get(p.id) || p, 'sm'),
+    zoomableAvatar(S.persons.get(p.id) || p, 'sm'),
     h('span', { class: 'rc-main' }, [
       h('span', { class: 'rc-row rc-receipt-top' }, [h('span', { class: 'rc-label' }, '宛名'), h('span', {}, p.receiptName || h('span', { class: 'muted' }, '（未設定）'))]),
       h('span', { class: 'rc-row rc-person' }, [h('span', { class: 'rc-label' }, '人物'), h('span', {}, [h('span', { class: 'rc-person-name' }, p.name), p.nameKana ? h('span', { class: 'rc-kana' }, ` ${p.nameKana}`) : null])]),
@@ -1014,7 +1014,7 @@ function viewPerson({ outlet, params }) {
       h('div', { class: 'page-head' }, [
         backLink('← 戻る'),
         h('div', { class: 'person-head' }, [
-          h('button', { type: 'button', class: 'avatar-btn', title: photoUrl(p) ? '写真を変更' : '写真を追加', onclick: () => choosePersonPhoto(p) }, avatar(p, 'lg')),
+          h('button', { type: 'button', class: 'avatar-btn', title: photoUrl(p) ? '写真を拡大' : '写真を追加', 'aria-label': photoUrl(p) ? `${p.name}の写真を拡大` : '写真を追加', onclick: () => showPersonPhoto(p) }, avatar(p, 'lg')),
           h('div', { class: 'person-head-main' }, [
             h('div', { class: 'title-row' }, [h('h1', {}, p.name), h('span', { class: 'id-badge' }, `人物ID ${p.id}`)]),
             p.nameKana ? h('div', { class: 'kana' }, p.nameKana) : null,

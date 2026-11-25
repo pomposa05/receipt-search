@@ -114,7 +114,7 @@ function viewGroup({ outlet, params }) {
     const memberRow = (x, type) => h('li', { class: 'gm-row' }, [
       selCheckbox(type, x.id, x.name),
       h('button', { type: 'button', class: 'gm-main', onclick: () => go(type, { id: x.id }) }, [
-        type === 'person' ? avatar(S.persons.get(x.id) || x, 'xs') : h('span', { class: 'type-tag type-co' }, '企業'),
+        type === 'person' ? zoomableAvatar(S.persons.get(x.id) || x, 'xs') : h('span', { class: 'type-tag type-co' }, '企業'),
         h('span', { class: 'gm-receipt' }, x.receiptName || '（宛名未設定）'),
         type === 'person' ? h('span', { class: 'gm-name' }, x.name) : null,
         h('span', { class: 'small muted' }, type === 'person' ? (x.companyName || '企業なし') : x.name),

@@ -65,6 +65,23 @@ const srv = http.createServer((req, res) => {
     await page.waitForSelector('.result-card img.avatar');
     await page.screenshot({ path: path.join(out, 'photo-3-search.png'), fullPage: true });
   });
+  await step('検索結果の写真をタップ → 詳細に移らず写真を拡大表示', async () => {
+    await page.click('.result-card .avatar-zoom');
+    await page.waitForSelector('dialog img.photo-zoom');
+    assert(await page.locator('dialog img.photo-zoom').evaluate((i) => i.naturalWidth > 0 && i.getBoundingClientRect().width >= 300), 'big');
+    await page.screenshot({ path: path.join(out, 'photo-4-zoom.png') });
+    await page.click('dialog button:text-is("閉じる")');
+    assert(await page.isVisible('#search-input'), 'stayed on search');
+  });
+  await step('詳細画面の写真をタップ → 拡大表示（変更の画面は出ない）', async () => {
+    await page.click('.result-card >> nth=0');
+    await page.click('.person-head .avatar-btn');
+    await page.waitForSelector('dialog img.photo-zoom');
+    assert(!(await page.isVisible('dialog >> text=保存済みの画像を選ぶ')), 'no picker');
+    await page.click('dialog img.photo-zoom'); // 写真をタップしても閉じる
+    await page.waitForSelector('dialog', { state: 'detached' });
+    await page.click('.nav >> text=検索');
+  });
   await step('保存済みの画像から写真を変更（回転も）', async () => {
     await page.click('.result-card >> nth=0');
     await page.click('text=写真を変更 >> nth=0');

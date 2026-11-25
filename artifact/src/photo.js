@@ -17,6 +17,34 @@ function avatar(p, size = 'md') {
   return h('span', { class: `avatar avatar-${size} avatar-empty`, 'aria-hidden': 'true' }, initial);
 }
 
+/** 顔写真を大きく表示する（写真がなければ追加の画面へ） */
+async function showPersonPhoto(p) {
+  const cur = S.persons.get(p.id) || p;
+  const url = photoUrl(cur);
+  if (!url) { choosePersonPhoto(cur); return; }
+  const c = cur.companyId ? S.companies.get(cur.companyId) : null;
+  const v = await dialog({
+    title: `${cur.name}の写真`,
+    body: (done) => {
+      const img = h('img', { class: 'photo-zoom', src: url, alt: `${cur.name}の写真` });
+      img.addEventListener('click', () => done(null));
+      return [img, c ? h('p', { class: 'small muted photo-zoom-cap' }, c.name) : null];
+    },
+    buttons: [{ label: '写真を変更', value: 'change' }, { label: '閉じる', value: true, kind: 'primary' }],
+  });
+  if (v === 'change') choosePersonPhoto(cur);
+}
+/** 一覧の小さい写真: タップで拡大（行全体のタップ＝詳細を開く、とは別に動く） */
+function zoomableAvatar(p, size) {
+  const a = avatar(p, size);
+  if (!photoUrl(p)) return a;
+  const w = h('span', { class: 'avatar-zoom', role: 'button', tabindex: '0', title: '写真を拡大', 'aria-label': `${p.name}の写真を拡大` }, a);
+  const open = (e) => { e.stopPropagation(); e.preventDefault(); showPersonPhoto(p); };
+  w.addEventListener('click', open);
+  w.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') open(e); });
+  return w;
+}
+
 async function setPersonPhoto(personId, blob) {
   if (!RT.assets) throw new AppError('NO_ASSETS', 'このアカウントでは写真を保存できません（ページの所有者・編集者のみ保存できます）。');
   const cur = await fresh('persons', personId);
