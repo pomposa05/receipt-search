@@ -94,7 +94,7 @@ function groupMemberCards(groupId) {
 /** 宛名の一覧（コピー用）。人物は宛名、企業のみの登録は企業の宛名 */
 function groupReceiptText(groupId) {
   const { ps, cs } = groupMemberCards(groupId);
-  return [...ps.map((p) => `${p.receiptName || defaultReceiptName(p.name, p.companyName)}\t${p.name}`), ...cs.map((c) => c.receiptName || `${c.name} 御中`)].join('\n');
+  return [...ps.map((p) => `${p.receiptName || defaultReceiptName(p.name, p.companyName)}\t${p.name}`), ...cs.map((c) => companyReceiptName(S.companies.get(c.id) || c))].join('\n');
 }
 
 // ---------- グループ画面 ----------

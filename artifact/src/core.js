@@ -104,6 +104,27 @@ function keywordChips(keywords, onPick) {
   if (!list.length) return h('span', { class: 'muted' }, '（なし）');
   return h('span', { class: 'chips' }, list.map((k) => h('button', { type: 'button', class: 'chip chip-btn', onclick: () => onPick?.(k) }, k)));
 }
+/**
+ * 企業の領収証宛名。企業で宛名を個別に設定していればそれを使う。
+ * 自動の「○○ 御中」のままなら、その企業の人物に登録した領収証宛名（例: ○○ 様）を表示する。
+ */
+function companyReceiptName(c) {
+  if (!c) return '';
+  const auto = `${c.name} 御中`;
+  if (c.receiptName && c.receiptName !== auto) return c.receiptName;
+  const count = new Map();
+  for (const p of S.persons.values()) {
+    if (p.companyId !== c.id || !p.receiptName) continue;
+    // 個人名入りの宛名（○○ 山田様）は企業の宛名にしない
+    const nm = String(p.name || '').replace(/[（(].*?[）)]/g, '').replace(/\s+/g, '');
+    const r = p.receiptName.replace(/\s+/g, '');
+    if (nm && r !== `${c.name}様`.replace(/\s+/g, '') && r.includes(nm)) continue;
+    count.set(p.receiptName, (count.get(p.receiptName) || 0) + 1);
+  }
+  let best = ''; let n = 0;
+  for (const [r, k] of count) if (k > n) { best = r; n = k; }
+  return best || c.receiptName || auto;
+}
 function defaultReceiptName(personName, companyName) {
   const p = String(personName || '').trim().replace(/\s+/g, ' ');
   const c = String(companyName || '').trim().replace(/\s+/g, ' ');

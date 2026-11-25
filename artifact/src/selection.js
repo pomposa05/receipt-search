@@ -27,7 +27,7 @@ function selItems() {
       out.push({ ...s, receipt: p.receiptName || defaultReceiptName(p.name, c?.name), person: p.name, company: c?.name || '', ref: p });
     } else {
       const c = S.companies.get(s.id); if (!c) continue;
-      out.push({ ...s, receipt: c.receiptName || defaultReceiptName('', c.name), person: '', company: c.name, ref: c });
+      out.push({ ...s, receipt: companyReceiptName(c), person: '', company: c.name, ref: c });
     }
   }
   return out;

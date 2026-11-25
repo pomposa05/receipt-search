@@ -83,8 +83,10 @@ const srv = http.createServer((req, res) => {
     await page.click('.nav >> text=検索');
   });
   await step('保存済みの画像から写真を変更（回転も）', async () => {
-    await page.click('.result-card >> nth=0');
-    await page.click('text=写真を変更 >> nth=0');
+    await page.click('.nav >> text=管理'); await page.click('.segmented >> text=人物一覧');
+    assert(await page.locator('td[data-label="写真"] img.avatar').count() === 1, 'admin photo column');
+    await page.click('td.actions >> text=写真');
+    await page.click('dialog >> text=写真を変更');
     const [ch] = await Promise.all([page.waitForEvent('filechooser'), page.click('dialog >> text=保存済みの画像を選ぶ')]);
     await ch.setFiles(path.resolve(__dirname, '../../test/fixtures/card2.png'));
     await page.waitForSelector('dialog .crop-canvas');
@@ -96,7 +98,8 @@ const srv = http.createServer((req, res) => {
   });
   await step('切り抜きをキャンセルすると変更されない', async () => {
     const cur = await page.evaluate(() => [...window.__docs].find(([p]) => p.startsWith('persons/'))[1].photo.assetId);
-    await page.click('text=写真を変更 >> nth=0');
+    await page.click('td.actions >> text=写真');
+    await page.click('dialog >> text=写真を変更');
     const [ch] = await Promise.all([page.waitForEvent('filechooser'), page.click('dialog >> text=保存済みの画像を選ぶ')]);
     await ch.setFiles(path.resolve(__dirname, '../../test/fixtures/card1.png'));
     await page.waitForSelector('dialog .crop-canvas');
@@ -105,9 +108,11 @@ const srv = http.createServer((req, res) => {
     assert(cur === now, 'unchanged');
   });
   await step('写真を削除', async () => {
-    await page.click('text=写真を削除');
+    await page.click('td.actions >> text=写真');
+    await page.click('dialog button:text-is("削除")');
     await page.click('dialog button:has-text("削除する")');
     await page.waitForSelector('text=写真を削除しました');
+    await page.click('td[data-label="名前"] button');
     await page.waitForSelector('.person-head .avatar-empty');
     const doc = await page.evaluate(() => [...window.__docs].find(([p]) => p.startsWith('persons/'))[1]);
     assert(!doc.photo, 'removed');

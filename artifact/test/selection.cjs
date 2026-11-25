@@ -26,6 +26,14 @@ const assert = (c, m) => { if (!c) throw new Error(m || 'assert'); };
     await page.check('#bulk-confirm'); await page.click('button:has-text("件を登録する")');
     await page.waitForSelector('text=4件を登録しました');
   });
+  await step('企業の画面の宛名は、人物に登録した「企業名 様」を表示（御中にしない）', async () => {
+    await page.click('.nav >> text=管理'); await page.click('.segmented >> text=人物一覧');
+    await page.click('tr:has-text("山田さん") td[data-label="企業名"] button');
+    await page.waitForSelector('.receipt-text');
+    const t = await page.textContent('.receipt-text');
+    assert(t === '株式会社サンプル商事 様', t);
+    assert((await page.textContent('.receipt-alts')).includes('株式会社サンプル商事 御中'), 'onchu as alternative');
+  });
   await step('選択していない間は選択バーを出さない', async () => {
     await page.click('.nav >> text=検索');
     assert(await page.isHidden('.sel-bar'), 'bar hidden');

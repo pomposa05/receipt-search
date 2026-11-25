@@ -34,6 +34,21 @@ async function showPersonPhoto(p) {
   });
   if (v === 'change') choosePersonPhoto(cur);
 }
+/** 管理画面の「写真」: 追加・変更・削除 */
+async function photoMenu(p) {
+  if (!p) return;
+  if (!photoUrl(p)) { choosePersonPhoto(p); return; }
+  const v = await dialog({
+    title: `${p.name}の写真`,
+    body: [h('img', { class: 'photo-zoom', src: photoUrl(p), alt: `${p.name}の写真` })],
+    buttons: [{ label: '削除', value: 'delete', kind: 'danger-ghost' }, { label: 'キャンセル', value: null }, { label: '写真を変更', value: 'change', kind: 'primary' }],
+  });
+  if (v === 'change') choosePersonPhoto(p);
+  if (v === 'delete') {
+    if (!(await confirmDialog('写真を削除します', `${p.name}の写真を削除します。元に戻せません。`, { okLabel: '削除する', danger: true }))) return;
+    try { await removePersonPhoto(p.id); toast('写真を削除しました', 'success'); } catch (e) { toast(dbErrorMessage(e), 'error', 6000); }
+  }
+}
 /** 一覧の小さい写真: タップで拡大（行全体のタップ＝詳細を開く、とは別に動く） */
 function zoomableAvatar(p, size) {
   const a = avatar(p, size);

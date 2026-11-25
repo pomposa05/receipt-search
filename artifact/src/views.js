@@ -145,7 +145,7 @@ function personCard(p) {
 function companyCard(c) {
   return h('li', { class: 'sel-wrap' }, [selCheckbox('company', c.id, c.name), h('div', { class: `result-card company ${c.isCandidate ? 'is-candidate' : ''}` }, [
     h('div', { class: 'rc-main' }, [
-      h('div', { class: 'rc-row rc-receipt-top' }, [h('span', { class: 'rc-label' }, '宛名'), h('span', {}, c.receiptName || h('span', { class: 'muted' }, '（未設定）'))]),
+      h('div', { class: 'rc-row rc-receipt-top' }, [h('span', { class: 'rc-label' }, '宛名'), h('span', {}, companyReceiptName(S.companies.get(c.id) || c) || h('span', { class: 'muted' }, '（未設定）'))]),
       h('div', { class: 'rc-row' }, [
         h('span', { class: 'rc-label' }, '人物'),
         h('span', { class: 'chips' }, [
@@ -1018,13 +1018,7 @@ function viewPerson({ outlet, params }) {
           h('div', { class: 'person-head-main' }, [
             h('div', { class: 'title-row' }, [h('h1', {}, p.name), h('span', { class: 'id-badge' }, `人物ID ${p.id}`)]),
             p.nameKana ? h('div', { class: 'kana' }, p.nameKana) : null,
-            h('div', { class: 'row' }, [
-              h('button', { type: 'button', class: 'btn btn-ghost btn-sm', onclick: () => choosePersonPhoto(p) }, photoUrl(p) ? '写真を変更' : '＋ 写真を追加'),
-              photoUrl(p) ? h('button', { type: 'button', class: 'btn btn-ghost btn-sm', onclick: async () => {
-                if (!(await confirmDialog('写真を削除します', `${p.name}の写真を削除します。元に戻せません。`, { okLabel: '削除する', danger: true }))) return;
-                try { await removePersonPhoto(p.id); toast('写真を削除しました', 'success'); } catch (e) { toast(dbErrorMessage(e), 'error', 6000); }
-              } }, '写真を削除') : null,
-            ]),
+            !photoUrl(p) ? h('button', { type: 'button', class: 'btn btn-ghost btn-sm', onclick: () => choosePersonPhoto(p) }, '＋ 写真を追加') : h('p', { class: 'small muted' }, '写真をタップすると拡大します（変更・削除は「管理 → 人物一覧」の「写真」から）'),
           ]),
         ]),
         same ? h('div', { class: 'notice notice-warn small' }, `同じ名前の登録情報が他に${same}件あります。企業名・人物IDで区別してください。`) : null,
@@ -1084,7 +1078,7 @@ function viewCompany({ outlet, params }) {
         c.nameKana ? h('div', { class: 'kana' }, c.nameKana) : null,
         same ? h('div', { class: 'notice notice-warn small' }, `同じ（または似た）名前の企業が他に${same}件あります。企業IDで区別してください。`) : null,
       ]),
-      receiptCard(c.receiptName, [`${c.name} 御中`, `${c.name} 様`]),
+      receiptCard(companyReceiptName(c), [`${c.name} 様`, `${c.name} 御中`]),
       h('section', { class: 'card card-ext' }, [h('h2', { class: 'card-title' }, '外部で調べる'), h('p', { class: 'small muted' }, '正式な企業名・所在地・電話番号の確認に使えます。'), externalSearchBox(c.name, { maps: true })]),
       h('section', { class: 'card' }, [
         h('div', { class: 'card-head' }, [h('h2', { class: 'card-title' }, `この企業の人物（${members.length}名）`), h('button', { type: 'button', class: 'btn btn-secondary btn-sm', onclick: () => go('register', { companyId: c.id }) }, '＋ この企業に人物を追加')]),
@@ -1162,18 +1156,20 @@ const byStr = (f) => (a, b) => String(f(a)).localeCompare(String(f(b)), 'ja');
 const byDesc = (f) => (a, b) => String(f(b)).localeCompare(String(f(a))) || cmpId(b.id, a.id);
 function adminPersons(body) {
   return listTable(body, {
-    columns: ['ID', '領収証宛名', '名前', '企業名', '最終更新', '操作'], emptyText: '該当する人物はありません。',
+    columns: ['ID', '写真', '領収証宛名', '名前', '企業名', '最終更新', '操作'], emptyText: '該当する人物はありません。',
     getItems: () => [...S.persons.values()].map(personSummary).map((p) => ({ ...p, version: S.persons.get(p.id).version })),
     filterText: (p) => `${p.name} ${p.nameKana} ${p.companyName} ${p.receiptName} ${withGroupNames(S.persons.get(p.id) || {})}`,
     sorters: [['updated', '更新日時が新しい順', byDesc((p) => p.updatedAt)], ['created', '登録日時が新しい順', byDesc((p) => p.createdAt)], ['name', '名前順', byStr((p) => p.nameKana || p.name)], ['company', '企業名順', byStr((p) => p.companyName)]],
     row: (p) => h('tr', {}, [
       h('td', { 'data-label': 'ID' }, p.id),
+      h('td', { 'data-label': '写真' }, zoomableAvatar(S.persons.get(p.id) || p, 'sm')),
       h('td', { 'data-label': '領収証宛名' }, p.receiptName),
       h('td', { 'data-label': '名前' }, h('button', { type: 'button', class: 'linkish', onclick: () => openPerson(p.id) }, p.name)),
       h('td', { 'data-label': '企業名' }, p.companyId ? h('button', { type: 'button', class: 'linkish', onclick: () => openCompany(p.companyId) }, p.companyName) : h('span', { class: 'muted' }, '—')),
       h('td', { 'data-label': '最終更新' }, formatDateTime(p.updatedAt)),
       h('td', { class: 'actions' }, [
         h('button', { type: 'button', class: 'btn btn-xs', onclick: () => go('editPerson', { id: p.id }) }, '編集'),
+        h('button', { type: 'button', class: 'btn btn-xs', onclick: () => photoMenu(S.persons.get(p.id)) }, '写真'),
         h('button', { type: 'button', class: 'btn btn-xs btn-danger-ghost', onclick: async () => {
           if (!(await confirmDialog('登録情報を削除します', [`「${p.name}」${p.companyName ? `（${p.companyName}）` : ''} ${p.id}`, 'メモも含めて削除され、元に戻せません。'], { okLabel: '削除する', danger: true }))) return;
           try { await deletePerson(p.id, p.version); toast('削除しました', 'success'); } catch (e) { toast(`削除できませんでした: ${dbErrorMessage(e)}`, 'error', 6000); }
@@ -1190,7 +1186,7 @@ function adminCompanies(body) {
     sorters: [['updated', '更新日時が新しい順', byDesc((c) => c.updatedAt)], ['created', '登録日時が新しい順', byDesc((c) => c.createdAt)], ['name', '企業名順', byStr((c) => c.nameKana || c.name)], ['count', '人物数が多い順', (a, b) => b.personCount - a.personCount || cmpId(a.id, b.id)]],
     row: (c) => h('tr', {}, [
       h('td', { 'data-label': 'ID' }, c.id),
-      h('td', { 'data-label': '領収証宛名' }, c.receiptName),
+      h('td', { 'data-label': '領収証宛名' }, companyReceiptName(S.companies.get(c.id) || c)),
       h('td', { 'data-label': '人物数' }, `${c.personCount}名`),
       h('td', { 'data-label': '企業名' }, h('button', { type: 'button', class: 'linkish', onclick: () => openCompany(c.id) }, c.name)),
       h('td', { 'data-label': '最終更新' }, formatDateTime(c.updatedAt)),
